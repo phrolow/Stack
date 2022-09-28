@@ -1,0 +1,14 @@
+#include "stack.h"
+
+int main() {
+    struct Stack stk1 = {};
+    int err = 0;
+    
+    stk1 = StackNew();
+    StackPush(&stk1, 1);
+    value = StackPop(&stk1, &err);
+    
+    StackDtor(&stk1);
+
+    return 0;
+}

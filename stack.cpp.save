@@ -1,0 +1,16 @@
+#include "stack.h"
+
+struct Stack StackNew() {
+    struct Stack stk = {};
+    
+    stk.data = (Elem_t*)calloc(1, sizeof(char)); //кринж наверно
+    stk.Size = 0;
+    stk.capacity = 1;
+    
+    return stk;
+}
+
+int StackPush(struct Stack stk*, Elem_t value) {
+    ASSERT_OK(stk);
+    
+    
