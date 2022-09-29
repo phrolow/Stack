@@ -2,7 +2,7 @@
 
 struct Stack StackNew_(const char* name, const char* func, const char* file, size_t line) {
     struct StackInfo info = { NULL, NULL, NULL, 0 };
-    struct Stack stk = {NULL, 0, 0, info};
+    struct Stack stk = { NAN, NULL, 0, 0, info, 0, 0, 0, 0, NAN };
 
     stk.capacity = START_CAPACITY;
     stk.data = (Elem_t*)calloc(stk.capacity, sizeof(char)); 
@@ -15,6 +15,12 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
     info.line = line;
 
     stk.info = info;
+
+    stk.canary0 = rand() ^ (size_t) stk.data ^ 0xDEADF00D;
+    stk.canary1 = stk.canary0;
+
+    StackHash(&stk);
+    stk.stackhash1 = stk.stackhash0;
 
     StackDump(&stk);
 
@@ -72,7 +78,9 @@ void StackDtor(struct Stack *stk) {
 
     free(stk->data);
 
-    RETURN;
+    StackDump(stk); 
+
+    return;
 }
 
 void StackDump_(struct Stack *stk, const char *func, const char *file, size_t line) {
@@ -80,7 +88,7 @@ void StackDump_(struct Stack *stk, const char *func, const char *file, size_t li
     FILE *fp = NULL;
 
     info = &(stk->info);
-    fp = fopen("logs.txt", "a");
+    fp = fopen(LOGPATH, "a");
 
     fprintf(fp, "%s at %s(%u)\n", func, file, line);
     fprintf(fp, "Stack[%lx] (ok) at %s at %s(%u) {\n", (long) stk, info->func, info->file, info->line);
@@ -119,6 +127,14 @@ int StackError(struct Stack *stk) {
     err |= CHECK(stk->Size < BIG_UNS, BAD_SIZE);
     
     err |= CHECK(stk->capacity < BIG_UNS && stk->capacity > 0, BAD_CAPACITY);
+
+    err |= CHECK(stk->canary0 == stk->canary1, CORRUPTED_CANARIES);
+
+    err |= CHECK(stk->stackhash0 == stk->stackhash1, CORRUPTED_STACK);
+
+    err |= CHECK(checkdatacanaries(stk), CORRUPTED_DATA_CANARIES);
+
+    err |= CHECK(stk->datahash0 == stk->datahash1, CORRUPTED_DATA);
     
     return err;
 }
@@ -146,7 +162,7 @@ void CleanLogs() {
 }
 
 char* binary(int n) {
-    const char *zero = "0b00000000";
+    const char *zero = "0b0000000";
     char *res = NULL;
     int i = 0,
         l = strlen(zero);
@@ -161,6 +177,21 @@ char* binary(int n) {
     }
 
     return res;
+}
+
+void StackHash(struct Stack *stk){
+    stk->stackhash1 = stk->stackhash0;
+    stk->stackhash0 = 0;
+
+    stk->stackhash0 = hash(stk, sizeof(*stk));
+}
+
+long hash(void* ptr, size_t size) {
+    return (int) ptr;
+}
+
+int checkdatacanaries(struct Stack *stk) {
+    return 1;
 }
 
 //TODO: snippet FILE* fp = NULL;
