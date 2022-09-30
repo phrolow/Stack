@@ -19,6 +19,7 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
     stk.canary0 = rand() ^ (size_t) stk.data ^ 0xDEADF00D;
     stk.canary1 = stk.canary0;
 
+    StackDataHash(&stk);
     StackHash(&stk);
 
     StackDump(&stk);
@@ -44,6 +45,7 @@ Elem_t StackPop(struct Stack *stk, int* err) {
 
     stk->data[stk->Size--] = POISON;
 
+    StackDataHash(stk);
     StackHash(stk);
 
     if(stk->Size + 1 <= stk->capacity / 2 && stk->Size > 0)
@@ -118,7 +120,7 @@ void StackDump_(struct Stack *stk, const char *func, const char *file, size_t li
     return;
 }
 
-int StackError(struct Stack *stk) {
+int StackError_(struct Stack *stk, const char* func, const char* file, size_t line) {
     int err = 0;
 
     err |= CHECK(stk, NULL_POINTER);
@@ -129,14 +131,16 @@ int StackError(struct Stack *stk) {
     
     err |= CHECK(stk->capacity < BIG_UNS && stk->capacity > 0, BAD_CAPACITY);
 
+    err |= CHECK(checkdatacanaries(stk), CORRUPTED_DATA_CANARIES);
+
+    err |= CHECK(stk->datahash == StackDataHash(stk), CORRUPTED_DATA);
+
     err |= CHECK(stk->canary0 == stk->canary1, CORRUPTED_CANARIES);
 
     err |= CHECK(stk->stackhash == StackHash(stk), CORRUPTED_STACK);
 
-    err |= CHECK(checkdatacanaries(stk), CORRUPTED_DATA_CANARIES);
-
-    //err |= CHECK(stk->datahash == hash(data, capacity), CORRUPTED_DATA);
-    err |= CHECK(1, CORRUPTED_DATA);
+    if(err)
+        perror_(err, file, func, line);
     
     return err;
 }
@@ -144,7 +148,7 @@ int StackError(struct Stack *stk) {
 void perror_(int err, const char* file, const char* func, size_t line) {
     FILE* fp = fopen(LOGPATH, "a");
 
-    fprintf(fp, "\n%s in %s at %s(%d)\n\n", binary(err), func, file, line);
+    fprintf(fp, "\n0b%08d in %s at %s(%d)\n\n", binary(err), func, file, line);
 
     fclose(fp);
 
@@ -163,31 +167,29 @@ void CleanLogs() {
     fclose(fopen(LOGPATH, "w"));
 }
 
-char* binary(int n) {
-    const char *zero = "0b0000000";
-    char *res = NULL;
-    int i = 0,
-        l = strlen(zero);
-
-    res = (char*)calloc(l + 1, sizeof(char));
-    strcpy(res, zero);
+int binary(int n) {
+    int res = 0;
 
     while(n > 0) {
-        res[l - i] = (char) (n % 2 + '0');
+        res = res * 10 + res % 2;
         n /= 2;
-        i++;
     }
 
     return res;
 }
 
 long StackHash(struct Stack *stk){
-    stk->stackhash = stk->stackhash;
     stk->stackhash = 0;
 
     stk->stackhash = hash(stk, sizeof(*stk));
 
     return stk->stackhash;
+}
+
+long StackDataHash(struct Stack *stk) {
+    stk->datahash = hash(stk->data, stk->capacity * sizeof(Elem_t));
+
+    return stk->datahash;
 }
 
 long hash(void* p, size_t size) {

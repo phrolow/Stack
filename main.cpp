@@ -16,7 +16,7 @@ int main() {
     value = StackPop(&stk1, &err);
     value = StackPop(&stk1, &err);
 
-    printf("%c\n", value);
+    printf(ElemFormat, value);
 
     StackDtor(&stk1);
 
