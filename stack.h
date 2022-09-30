@@ -10,20 +10,17 @@
 //#define ASSERTED == 0 || Error("Error")
 
 #define ASSERT_OK(stk)                                                              \
-    StackHash(stk);                                                                 \
+    StackDump(stk);                                                                 \
                                                                                     \
     if(StackError(stk)) {                                                           \
         perror_(StackError(stk), LOCATION);                                         \
         abort();                                                                    \
-    }                                                                               \
-                                                                                    \
-    StackDump(stk)
+    }                                                                               
 
 #define CHECK(cond, err) (cond) ? 0 : (err)
 
 #define RETURN                                                                      \
         StackHash(stk);                                                             \
-        stk->stackhash1 = stk->stackhash0;                                          \
                                                                                     \
         ASSERT_OK(stk);                                                             \
                                                                                     \
@@ -50,10 +47,8 @@ struct Stack {
     size_t Size;
     size_t capacity;
     struct StackInfo info;
-    long datahash0;
-    long datahash1;
-    long stackhash0;
-    long stackhash1;
+    long datahash;
+    long stackhash;
     long double canary1;
 };
 
@@ -88,7 +83,7 @@ void StackDump_(struct Stack *stk, const char* func, const char* file, size_t li
 
 int StackError(struct Stack *stk);
 
-void StackHash(struct Stack *stk);
+long StackHash(struct Stack *stk);
 
 void perror_(int err, const char* file, const char* func, size_t line);
 
@@ -98,7 +93,7 @@ void CleanLogs();
 
 char* binary(int n);
 
-long hash(void* ptr, size_t size);
+long hash(void* p, size_t size);
 
 int checkdatacanaries(struct Stack *stk);
 

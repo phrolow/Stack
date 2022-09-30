@@ -2,7 +2,7 @@
 
 struct Stack StackNew_(const char* name, const char* func, const char* file, size_t line) {
     struct StackInfo info = { NULL, NULL, NULL, 0 };
-    struct Stack stk = { NAN, NULL, 0, 0, info, 0, 0, 0, 0, NAN };
+    struct Stack stk = { NAN, NULL, 0, 0, info, 0, 0, NAN };
 
     stk.capacity = START_CAPACITY;
     stk.data = (Elem_t*)calloc(stk.capacity, sizeof(char)); 
@@ -20,7 +20,6 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
     stk.canary1 = stk.canary0;
 
     StackHash(&stk);
-    stk.stackhash1 = stk.stackhash0;
 
     StackDump(&stk);
 
@@ -45,7 +44,9 @@ Elem_t StackPop(struct Stack *stk, int* err) {
 
     stk->data[stk->Size--] = POISON;
 
-    if(stk->Size <= stk->capacity / 2 && stk->Size > 0)
+    StackHash(stk);
+
+    if(stk->Size + 1 <= stk->capacity / 2 && stk->Size > 0)
         StackResize(stk, stk->capacity / 2);
 
     *err = StackError(stk);
@@ -130,11 +131,12 @@ int StackError(struct Stack *stk) {
 
     err |= CHECK(stk->canary0 == stk->canary1, CORRUPTED_CANARIES);
 
-    err |= CHECK(stk->stackhash0 == stk->stackhash1, CORRUPTED_STACK);
+    err |= CHECK(stk->stackhash == StackHash(stk), CORRUPTED_STACK);
 
     err |= CHECK(checkdatacanaries(stk), CORRUPTED_DATA_CANARIES);
 
-    err |= CHECK(stk->datahash0 == stk->datahash1, CORRUPTED_DATA);
+    //err |= CHECK(stk->datahash == hash(data, capacity), CORRUPTED_DATA);
+    err |= CHECK(1, CORRUPTED_DATA);
     
     return err;
 }
@@ -179,15 +181,26 @@ char* binary(int n) {
     return res;
 }
 
-void StackHash(struct Stack *stk){
-    stk->stackhash1 = stk->stackhash0;
-    stk->stackhash0 = 0;
+long StackHash(struct Stack *stk){
+    stk->stackhash = stk->stackhash;
+    stk->stackhash = 0;
 
-    stk->stackhash0 = hash(stk, sizeof(*stk));
+    stk->stackhash = hash(stk, sizeof(*stk));
+
+    return stk->stackhash;
 }
 
-long hash(void* ptr, size_t size) {
-    return (int) ptr;
+long hash(void* p, size_t size) {
+    long res = 0;
+    char* ptr = NULL;
+
+    ptr = (char*)p;
+
+    for(size_t i = 0; i < size; i++) {
+        res = ((res << 5) + res) + ptr[i];
+    }
+
+    return res;
 }
 
 int checkdatacanaries(struct Stack *stk) {
