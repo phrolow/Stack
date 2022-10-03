@@ -1,10 +1,13 @@
 #include "stack.h"
 
 int main() {
+    double a = -2.07742e+14;
+    double b = a;
+    printf("Main: %lg %lg\n", a, b);
+
     CleanLogs();
     
     struct Stack stk1 = StackNew();
-    int err = 0;
     Elem_t value = 7;
 
     StackPush(&stk1, 'w');
@@ -12,9 +15,9 @@ int main() {
     StackPush(&stk1, 's');
     StackPush(&stk1, 'w');
 
-    value = StackPop(&stk1, &err);
-    value = StackPop(&stk1, &err);
-    value = StackPop(&stk1, &err);
+    value = StackPop(&stk1);
+    value = StackPop(&stk1);
+    value = StackPop(&stk1);
 
     printf(ElemFormat, value);
 

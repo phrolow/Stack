@@ -3,10 +3,10 @@
 struct Stack StackNew_(const char* name, const char* func, const char* file, size_t line) {
     struct StackInfo info = { NULL, NULL, NULL, 0 };
     struct Stack stk = { NAN, NULL, 0, 0, info, 0, 0, NAN };
+    long double datacanary = NAN;
 
     stk.capacity = START_CAPACITY;
-    stk.data = (Elem_t*)calloc(stk.capacity, sizeof(char)); 
-    stk.data[0] = POISON;
+    stk.data = (Elem_t*)calloc(ON_CANARY_PROT(2 * sizeof(datacanary) / sizeof(Elem_t)) + stk.capacity, sizeof(char)); 
     stk.Size = 0;
 
     info.name = name;
@@ -16,8 +16,22 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
 
     stk.info = info;
 
+    #ifdef CANARY_PROT
     stk.canary0 = rand() ^ (size_t) stk.data ^ 0xDEADF00D;
     stk.canary1 = stk.canary0;
+
+    datacanary = rand() ^ ((size_t) stk.data + 1) ^ 0xDEADF00D;
+
+    *((long double *) (stk.data)) = datacanary;
+
+    stk.data += sizeof(datacanary) / sizeof(Elem_t);
+
+    *((long double *) (stk.data + stk.capacity)) = datacanary;
+
+    printf("StackNew: %Lf %Lf %Lf\n", datacanary, *((long double *) (stk.data - sizeof(datacanary) / sizeof(Elem_t))), *((long double *) (stk.data + stk.capacity)));
+    #endif
+
+    stk.data[0] = POISON;
 
     StackDataHash(&stk);
     StackHash(&stk);
@@ -27,7 +41,7 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
     return stk;
 }
 
-int StackPush(struct Stack *stk, Elem_t value) {
+void StackPush(struct Stack *stk, Elem_t value) {
     ASSERT_OK(stk);
 
     if(stk->Size >= stk->capacity)
@@ -35,15 +49,15 @@ int StackPush(struct Stack *stk, Elem_t value) {
     
     stk->data[stk->Size++] = value;
 
-    RETURN StackError(stk);
+    RETURN;
 }
 
-Elem_t StackPop(struct Stack *stk, int* err) {
+Elem_t StackPop(struct Stack *stk) {
     ASSERT_OK(stk);
 
-    Elem_t res = stk->data[stk->Size];
+    Elem_t res = stk->data[--stk->Size];
 
-    stk->data[stk->Size--] = POISON;
+    stk->data[stk->Size] = POISON;
 
     StackDataHash(stk);
     StackHash(stk);
@@ -51,15 +65,20 @@ Elem_t StackPop(struct Stack *stk, int* err) {
     if(stk->Size + 1 <= stk->capacity / 2 && stk->Size > 0)
         StackResize(stk, stk->capacity / 2);
 
-    *err = StackError(stk);
-
     RETURN res;
 }
 
-int StackResize(struct Stack *stk, size_t newCapacity) {
+void StackResize(struct Stack *stk, size_t newCapacity) {
     ASSERT_OK(stk);
 
-    stk->data = (Elem_t*)recalloc(stk->data, newCapacity, sizeof(Elem_t));
+    stk->data = (Elem_t*)recalloc(stk->data ON_CANARY_PROT(- sizeof(long double) / sizeof(Elem_t)), newCapacity ON_CANARY_PROT(+ 2 * sizeof(long double) / sizeof(Elem_t)), sizeof(Elem_t));
+    stk->data += sizeof(long double) / sizeof(Elem_t);
+    
+    for(size_t i = 0; i < sizeof(long double) / sizeof(Elem_t); i++) {
+        *(stk->data + stk->capacity + i) = POISON;
+    }
+    
+    *((long double *) (stk->data + newCapacity)) = *((long double *) (stk->data - sizeof(long double)));
 
     if(stk->capacity < newCapacity)
         for(size_t i = stk->capacity; i < newCapacity; i++)
@@ -67,7 +86,7 @@ int StackResize(struct Stack *stk, size_t newCapacity) {
 
     stk->capacity = newCapacity;
 
-    RETURN StackError(stk);
+    RETURN;
 }
 
 void StackDtor(struct Stack *stk) {
@@ -86,127 +105,11 @@ void StackDtor(struct Stack *stk) {
     return;
 }
 
-void StackDump_(struct Stack *stk, const char *func, const char *file, size_t line) {
-    struct StackInfo* info = NULL;
-    FILE *fp = NULL;
-
-    info = &(stk->info);
-    fp = fopen(LOGPATH, "a");
-
-    fprintf(fp, "%s at %s(%u)\n", func, file, line);
-    fprintf(fp, "Stack[%lx] (ok) at %s at %s(%u) {\n", (long) stk, info->func, info->file, info->line);
-    fprintf(fp, "\tSize = %u\n", stk->Size);
-    fprintf(fp, "\tcapacity = %u\n", stk->capacity);
-    fprintf(fp, "\tdata[%lx] {\n", (long) info->name);
-    
-    for(size_t i = 0; i < stk->capacity; i++) {
-        fprintf(fp, "\t\t");
-
-        if(i <= stk->Size)
-            fprintf(fp, "*");
-        
-        fprintf(fp, "[%u] = %c", i, stk->data[i]);
-
-        if(stk->data[i] == POISON)
-            fprintf(fp, " (POISON)");
-        
-        fprintf(fp, "\n");
-    }
-
-    fprintf(fp, "\t}\n}\n\n");
-
-    fclose(fp);
-
-    return;
-}
-
-int StackError_(struct Stack *stk, const char* func, const char* file, size_t line) {
-    int err = 0;
-
-    err |= CHECK(stk, NULL_POINTER);
-
-    err |= CHECK(stk->data, NULL_DATA);
-    
-    err |= CHECK(stk->Size < BIG_UNS, BAD_SIZE);
-    
-    err |= CHECK(stk->capacity < BIG_UNS && stk->capacity > 0, BAD_CAPACITY);
-
-    err |= CHECK(checkdatacanaries(stk), CORRUPTED_DATA_CANARIES);
-
-    err |= CHECK(stk->datahash == StackDataHash(stk), CORRUPTED_DATA);
-
-    err |= CHECK(stk->canary0 == stk->canary1, CORRUPTED_CANARIES);
-
-    err |= CHECK(stk->stackhash == StackHash(stk), CORRUPTED_STACK);
-
-    if(err)
-        perror_(err, file, func, line);
-    
-    return err;
-}
-
-void perror_(int err, const char* file, const char* func, size_t line) {
-    FILE* fp = fopen(LOGPATH, "a");
-
-    fprintf(fp, "\n0b%08d in %s at %s(%d)\n\n", binary(err), func, file, line);
-
-    fclose(fp);
-
-    return;
-}
-
-void* recalloc(void* ptr, size_t num, size_t Size) {
-    assert(ptr && num && Size);
-
-    ptr = realloc(ptr, num * Size);
-
-    return ptr;
-}
-
-void CleanLogs() {
-    fclose(fopen(LOGPATH, "w"));
-}
-
-int binary(int n) {
-    int res = 0;
-
-    while(n > 0) {
-        res = res * 10 + res % 2;
-        n /= 2;
-    }
-
-    return res;
-}
-
-long StackHash(struct Stack *stk){
-    stk->stackhash = 0;
-
-    stk->stackhash = hash(stk, sizeof(*stk));
-
-    return stk->stackhash;
-}
-
-long StackDataHash(struct Stack *stk) {
-    stk->datahash = hash(stk->data, stk->capacity * sizeof(Elem_t));
-
-    return stk->datahash;
-}
-
-long hash(void* p, size_t size) {
-    long res = 0;
-    char* ptr = NULL;
-
-    ptr = (char*)p;
-
-    for(size_t i = 0; i < size; i++) {
-        res = ((res << 5) + res) + ptr[i];
-    }
-
-    return res;
-}
-
 int checkdatacanaries(struct Stack *stk) {
-    return 1;
+    printf("checkdatacanaries: %d\n", *((long double *) (stk->data - sizeof(long double) / sizeof(Elem_t))) == *((long double *) (stk->data + stk->capacity)));
+
+    return *((long double *) (stk->data - sizeof(long double) / sizeof(Elem_t))) == *((long double *) (stk->data + stk->capacity));
+    //return 1;
 }
 
 //TODO: snippet FILE* fp = NULL;
