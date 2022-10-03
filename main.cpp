@@ -1,12 +1,8 @@
 #include "stack.h"
 
 int main() {
-    double a = -2.07742e+14;
-    double b = a;
-    printf("Main: %lg %lg\n", a, b);
-
     CleanLogs();
-    
+
     struct Stack stk1 = StackNew();
     Elem_t value = 7;
 

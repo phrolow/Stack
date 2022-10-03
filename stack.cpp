@@ -28,7 +28,6 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
 
     *((long double *) (stk.data + stk.capacity)) = datacanary;
 
-    printf("StackNew: %Lf %Lf %Lf\n", datacanary, *((long double *) (stk.data - sizeof(datacanary) / sizeof(Elem_t))), *((long double *) (stk.data + stk.capacity)));
     #endif
 
     stk.data[0] = POISON;
@@ -106,10 +105,7 @@ void StackDtor(struct Stack *stk) {
 }
 
 int checkdatacanaries(struct Stack *stk) {
-    printf("checkdatacanaries: %d\n", *((long double *) (stk->data - sizeof(long double) / sizeof(Elem_t))) == *((long double *) (stk->data + stk->capacity)));
-
     return *((long double *) (stk->data - sizeof(long double) / sizeof(Elem_t))) == *((long double *) (stk->data + stk->capacity));
-    //return 1;
 }
 
 //TODO: snippet FILE* fp = NULL;

@@ -1,11 +1,12 @@
 #include "stack.h"
 
 int binary(int n) {
-    int res = 0;
+    int res = 0, ten = 1;
 
     while(n > 0) {
-        res = res * 10 + n % 2;
-        n /= 2;
+        res += n % 2 * ten;
+        
+        ten *= 10;
     }
 
     return res;
