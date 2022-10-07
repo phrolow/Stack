@@ -37,6 +37,12 @@ void StackDump_(struct Stack *stk, const char *func, const char *file, size_t li
 int StackError_(struct Stack *stk, const char* func, const char* file, size_t line) {
     int err = 0;
 
+    long oldstackhash = stk->stackhash;
+    long olddatahash = stk->datahash;
+
+    StackHash(stk);
+    StackDataHash(stk);
+
     err |= CHECK(stk, NULL_POINTER);
 
     err |= CHECK(stk->data, NULL_DATA);
@@ -47,16 +53,14 @@ int StackError_(struct Stack *stk, const char* func, const char* file, size_t li
 
     err |= CHECK(stk->canary0 == stk->canary1, CORRUPTED_CANARIES);
 
-    err |= CHECK(stk->stackhash == StackHash(stk), CORRUPTED_STACK);
+    err |= CHECK(stk->stackhash == oldstackhash, CORRUPTED_STACK);
 
     err |= CHECK(checkdatacanaries(stk), CORRUPTED_DATA_CANARIES);
 
-    err |= CHECK(stk->datahash == StackDataHash(stk), CORRUPTED_DATA);
+    err |= CHECK(stk->datahash == olddatahash, CORRUPTED_DATA);
 
     if(err)
         perror_(err, file, func, line);
-
-    StackHash(stk);
     
     return err;
 }

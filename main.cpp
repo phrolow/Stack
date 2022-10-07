@@ -9,6 +9,10 @@ int main() {
     StackPush(&stk1, 'w');
     StackPush(&stk1, 'a');
     StackPush(&stk1, 's');
+
+    stk1.data[1] = 'N';
+    stk1.Size = 228;
+
     StackPush(&stk1, 'w');
 
     value = StackPop(&stk1);

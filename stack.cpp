@@ -107,5 +107,3 @@ void StackDtor(struct Stack *stk) {
 int checkdatacanaries(struct Stack *stk) {
     return *((long double *) (stk->data - sizeof(long double) / sizeof(Elem_t))) == *((long double *) (stk->data + stk->capacity));
 }
-
-//TODO: snippet FILE* fp = NULL;

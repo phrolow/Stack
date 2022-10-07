@@ -7,6 +7,8 @@ int binary(int n) {
         res += n % 2 * ten;
         
         ten *= 10;
+
+        n /= 2;
     }
 
     return res;
