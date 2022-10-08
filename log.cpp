@@ -69,10 +69,12 @@ void CleanLogs() {
 }
 
 void perror_(int err, const char* file, const char* func, size_t line) {
+    int binerr = binary(err);
+
     FILE* fp = fopen(LOGPATH, "a");
 
     if(err)
-        fprintf(fp, "ERROR 0b%08d in %s at %s(%llu)\n\n", binary(err), func, file, line);
+        fprintf(fp, "ERROR 0b%08d in %s at %s(%llu)\n\n", binerr, func, file, line);
     else
         fprintf(fp, "(OK)\n\n");
 
