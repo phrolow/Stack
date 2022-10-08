@@ -7,11 +7,11 @@ void StackDump_(struct Stack *stk, const char *func, const char *file, size_t li
     info = &(stk->info);
     fp = fopen(LOGPATH, "a");
 
-    fprintf(fp, "%s at %s(%u)\n", func, file, line);
-    fprintf(fp, "Stack[%lx] (ok) at %s at %s(%u) {\n", (long) stk, info->func, info->file, info->line);
-    fprintf(fp, "\tSize = %u\n", stk->Size);
-    fprintf(fp, "\tcapacity = %u\n", stk->capacity);
-    fprintf(fp, "\tdata[%lx] {\n", (long) info->name);
+    fprintf(fp, "%s at %s(%llu)\n", func, file, line);
+    fprintf(fp, "Stack[%p] (ok) at %s at %s(%llu) {\n", stk, info->func, info->file, info->line);
+    fprintf(fp, "\tSize = %llu\n", stk->Size);
+    fprintf(fp, "\tcapacity = %llu\n", stk->capacity);
+    fprintf(fp, "\tdata[%p] {\n", info->name);
     
     for(size_t i = 0; i < stk->capacity; i++) {
         fprintf(fp, "\t\t");
@@ -19,7 +19,7 @@ void StackDump_(struct Stack *stk, const char *func, const char *file, size_t li
         if(i <= stk->Size)
             fprintf(fp, "*");
         
-        fprintf(fp, "[%u] = %c", i, stk->data[i]);
+        fprintf(fp, "[%llu] = %c", i, stk->data[i]);
 
         if(stk->data[i] == POISON)
             fprintf(fp, " (POISON)");
@@ -27,7 +27,7 @@ void StackDump_(struct Stack *stk, const char *func, const char *file, size_t li
         fprintf(fp, "\n");
     }
 
-    fprintf(fp, "\t}\n}\n\n");
+    fprintf(fp, "\t}\n}\n");
 
     fclose(fp);
 
@@ -59,8 +59,7 @@ int StackError_(struct Stack *stk, const char* func, const char* file, size_t li
 
     err |= CHECK(stk->datahash == olddatahash, CORRUPTED_DATA);
 
-    if(err)
-        perror_(err, file, func, line);
+    perror_(err, file, func, line);
     
     return err;
 }
@@ -72,7 +71,10 @@ void CleanLogs() {
 void perror_(int err, const char* file, const char* func, size_t line) {
     FILE* fp = fopen(LOGPATH, "a");
 
-    fprintf(fp, "0b%08d in %s at %s(%d)\n\n", binary(err), func, file, line);
+    if(err)
+        fprintf(fp, "ERROR 0b%08d in %s at %s(%llu)\n\n", binary(err), func, file, line);
+    else
+        fprintf(fp, "(OK)\n\n");
 
     fclose(fp);
 
