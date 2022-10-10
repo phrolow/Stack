@@ -14,6 +14,8 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
     info.file = file;
     info.line = line;
 
+    StackDump(&stk);
+
     stk.info = info;
 
     #ifdef CANARY_PROT
