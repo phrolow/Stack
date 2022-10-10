@@ -36,6 +36,7 @@ struct Stack StackNew_(const char* name, const char* func, const char* file, siz
     StackHash(&stk);
 
     StackDump(&stk);
+    StackError(&stk);
 
     return stk;
 }
